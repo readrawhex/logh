@@ -145,13 +145,17 @@ def status(timesheet: list, project: str = None, start: str = None, end: str = N
     start_time = datetime.fromisoformat(start) if start else None
     end_time = datetime.fromisoformat(end) if end else None
     recents = {}
+
     if project:
         for t in timesheet:
             if t["project"] == project:
-                recents["project"] = t
-                break
+                if project not in recents.keys():
+                    recents[t["project"]] = [t]
+                else:
+                    recents[t["project"]].append(t)
         if len(recents) == 0:
             raise Exception("no data for project '{}' found")
+        recents = sorted(recents[project], key=lambda x: x["in"])
     else:
         for t in timesheet:
             if (
@@ -160,8 +164,10 @@ def status(timesheet: list, project: str = None, start: str = None, end: str = N
                 and (end_time is None or t["out"] is None or end_time >= t["out"])
             ):
                 recents[t["project"]] = t
+        if len(recents) == 0:
+            raise Exception("no data for project '{}' found")
+        recents = sorted(recents.values(), key=lambda x: x["in"])
 
-    recents = sorted(recents.values(), key=lambda x: x["in"])
     for r in recents:
         print(
             "{:<20}: {} {}".format(
@@ -176,6 +182,7 @@ def status(timesheet: list, project: str = None, start: str = None, end: str = N
         )
         if r["description"] not in [None, ""]:
             print("└──{}".format(r["description"]))
+
 
 
 def main():
@@ -258,6 +265,7 @@ def main():
         with open(timesheet_path, "w") as f:
             json.dump(timesheet, f)
     except Exception as e:
+        raise(e)
         parser.print_help(sys.stderr)
         print(f"\nFAILED: {e}", file=sys.stderr)
         sys.exit(1)
